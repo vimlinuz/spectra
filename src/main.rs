@@ -145,8 +145,8 @@ impl Compressor {
 
         (
             reconstructed_red_image_channel,
-            reconstructed_blue_image_channel,
             reconstructed_green_image_channel,
+            reconstructed_blue_image_channel,
         )
     }
 
