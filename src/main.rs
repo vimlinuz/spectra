@@ -1,21 +1,11 @@
-#![allow(unused)]
 mod cli;
-
-use std::ops::Sub;
 
 use clap::Parser;
 use cli::Args;
 
 use image::{ImageReader, RgbaImage};
 
-use faer::{
-    self, Mat,
-    linalg::{
-        solvers::{ShapeCore, Svd},
-        svd::{SvdParams, svd},
-    },
-    matrix_free::LinOp,
-};
+use faer::{Mat, linalg::solvers::Svd};
 
 struct ImageChannels {
     red: ImageChannelMatrix,
@@ -46,6 +36,23 @@ impl ImageChannels {
         }
 
         channels
+    }
+
+    fn to_rgba(self) -> RgbaImage {
+        let width = self.red.width as u32;
+        let height = self.red.height as u32;
+
+        RgbaImage::from_fn(width, height, |x, y| {
+            let row = y as usize;
+            let col = x as usize;
+
+            let red = self.red.get(row, col).round().clamp(0.0, 255.0) as u8;
+            let green = self.green.get(row, col).round().clamp(0.0, 255.0) as u8;
+            let blue = self.blue.get(row, col).round().clamp(0.0, 255.0) as u8;
+            let alpha = self.alpha.get(row, col).round().clamp(0.0, 255.0) as u8;
+
+            image::Rgba([red, green, blue, alpha])
+        })
     }
 }
 
@@ -188,6 +195,7 @@ fn main() {
     let args = Args::parse();
     let input_path = args.input;
     let singular_value = args.rank;
+    let output_path = args.output;
 
     let img = ImageReader::open(input_path)
         .expect("Image not found")
@@ -197,5 +205,7 @@ fn main() {
 
     let image_channels = ImageChannels::from_rgba(img);
     let compressor = Compressor::new(singular_value);
-    let compressed_image = compressor.compress(image_channels);
+    let compressed_image_channel = compressor.compress(image_channels);
+    let compressed_rgba = compressed_image_channel.to_rgba();
+    compressed_rgba.save(output_path).unwrap()
 }
