@@ -118,75 +118,32 @@ impl Compressor {
         &scaled_u * &vtk
     }
 
-    fn reconstruct(
-        self: Self,
-        red_channel_decomposition: Svd<f64>,
-        green_channel_decomposition: Svd<f64>,
-        blue_channel_decomposition: Svd<f64>,
-    ) -> (ImageChannelMatrix, ImageChannelMatrix, ImageChannelMatrix) {
-        let k = self.rank;
-        let reconstructed_red_image_channel_matrix =
-            Self::reconstruct_channel(&red_channel_decomposition, k);
-
-        let reconstructed_green_image_channel_matrix =
-            Self::reconstruct_channel(&green_channel_decomposition, k);
-
-        let reconstructed_blue_image_channel_matrix =
-            Self::reconstruct_channel(&blue_channel_decomposition, k);
-
-        let reconstructed_red_image_channel =
-            ImageChannelMatrix::from_mat(&reconstructed_red_image_channel_matrix);
-
-        let reconstructed_blue_image_channel =
-            ImageChannelMatrix::from_mat(&reconstructed_blue_image_channel_matrix);
-
-        let reconstructed_green_image_channel =
-            ImageChannelMatrix::from_mat(&reconstructed_green_image_channel_matrix);
-
-        (
-            reconstructed_red_image_channel,
-            reconstructed_green_image_channel,
-            reconstructed_blue_image_channel,
-        )
+    fn get_channel_matrix(channel: ImageChannelMatrix) -> Mat<f64> {
+        Mat::<f64>::from_fn(channel.height, channel.width, |row, col| {
+            channel.get(row, col)
+        })
     }
 
     fn compress(self: Self, channel: ImageChannels) -> ImageChannels {
-        let red_channel = channel.red;
-        let green_channel = channel.green;
-        let blue_channel = channel.blue;
-        let alpha_channel = channel.alpha;
-
-        let red_channel_matrix =
-            Mat::<f64>::from_fn(red_channel.height, red_channel.width, |row, col| {
-                red_channel.get(row, col)
-            });
-
-        let green_channel_matrix =
-            Mat::<f64>::from_fn(green_channel.height, green_channel.width, |row, col| {
-                green_channel.get(row, col)
-            });
-
-        let blue_channel_matrix =
-            Mat::<f64>::from_fn(blue_channel.height, blue_channel.width, |row, col| {
-                blue_channel.get(row, col)
-            });
+        let k = self.rank;
+        let red_channel_matrix = Self::get_channel_matrix(channel.red);
+        let green_channel_matrix = Self::get_channel_matrix(channel.green);
+        let blue_channel_matrix = Self::get_channel_matrix(channel.blue);
 
         let red_channel_decomposition = Self::decompose(red_channel_matrix);
         let green_channel_decomposition = Self::decompose(green_channel_matrix);
         let blue_channel_decomposition = Self::decompose(blue_channel_matrix);
 
-        let reconstructed_channels = Self::reconstruct(
-            self,
-            red_channel_decomposition,
-            green_channel_decomposition,
-            blue_channel_decomposition,
-        );
+        let reconstructed_red_channel = Self::reconstruct_channel(&red_channel_decomposition, k);
+        let reconstructed_green_channel =
+            Self::reconstruct_channel(&green_channel_decomposition, k);
+        let reconstrudted_blue_channel = Self::reconstruct_channel(&blue_channel_decomposition, k);
 
         ImageChannels {
-            red: reconstructed_channels.0,
-            green: reconstructed_channels.1,
-            blue: reconstructed_channels.2,
-            alpha: alpha_channel,
+            red: ImageChannelMatrix::from_mat(&reconstructed_red_channel),
+            green: ImageChannelMatrix::from_mat(&reconstructed_green_channel),
+            blue: ImageChannelMatrix::from_mat(&reconstrudted_blue_channel),
+            alpha: channel.alpha,
         }
     }
 }
